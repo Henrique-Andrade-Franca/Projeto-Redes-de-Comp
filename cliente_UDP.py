@@ -2,7 +2,7 @@
 Nome: Henrique Andrade
 E-mail: henrique.andrade@academico.ufpb.br
 Data de Criação: 26/04/2024
-Última Atualização: 26/04/2024 - 22:37:45
+Última Atualização: 26/04/2024 - 16:10:55
 Linguagem: Python
 
 Descrição: Implementação do cliente (socket UDP)
