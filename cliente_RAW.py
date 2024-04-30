@@ -2,73 +2,60 @@ import socket
 import random
 import struct
 
-# Função para anexar o cabeçalho UDP à mensagem
-def anexar_cabecalho_udp(mensagem):
-    source_port = 12345  # Porta de origem do cliente (pode ser qualquer valor)
-    dest_port = 50000  # Porta de destino do servidor
-    length = len(mensagem) + 8  # Comprimento total do segmento UDP (tamanho da mensagem + tamanho do cabeçalho UDP)
-    checksum = 0  # O cálculo do checksum pode ser ignorado
+def montar_cabecalho_udp(porta_origem, porta_destino, tamanho_total):
+    # Montar o cabeçalho UDP
+    # Cabeçalho UDP: porta origem (16 bits), porta destino (16 bits), tamanho (16 bits), checksum (16 bits)
+    cabecalho = struct.pack('!HHHH', porta_origem, porta_destino, tamanho_total, 0)
+    return cabecalho
+
+def montar_cabecalho_ip(ip_origem, ip_destino, protocolo, tamanho_total):
+    # Convertendo endereços IP para representação de bytes
+    ip_origem_bytes = socket.inet_aton(ip_origem)
+    ip_destino_bytes = socket.inet_aton(ip_destino)
     
-    # Empacotar os campos do cabeçalho UDP
-    cabecalho_udp = struct.pack('!HHHH', source_port, dest_port, length, checksum)
+    # Montar o cabeçalho IP
+    # Cabeçalho IP: versão, IHL, tipo de serviço, tamanho total, identificador, flags, offset, TTL, protocolo, checksum,
+    # IP origem (32 bits), IP destino (32 bits)
+    cabecalho = struct.pack('!BBHHHBBH4s4s', 69, 0, 0, tamanho_total, 0, 64, protocolo, 0, ip_origem_bytes, ip_destino_bytes)
+    return cabecalho
+
+def enviar_requisicao(socket_raw, tipo, identificador):
+    # Endereço IP e porta do servidor
+    SERVER_IP = '15.228.191.109'
+    SERVER_PORT = 50000
     
-    # Retornar a mensagem com o cabeçalho UDP anexado
-    return cabecalho_udp + mensagem
-
-# Função para anexar o cabeçalho IP à mensagem
-def anexar_cabecalho_ip(mensagem):
-    version_ihl = 0x45  # Versão do protocolo IP (4) e comprimento do cabeçalho IP (5 palavras de 32 bits)
-    dscp_ecn = 0  # Ignorados
-    total_length = len(mensagem) + 20  # Comprimento total do datagrama IP (tamanho da mensagem + tamanho do cabeçalho IP)
-    identification = random.randint(0, 65535)  # Identificação do datagrama (número aleatório)
-    flags_fragment_offset = 0  # Ignorados
-    ttl = 64  # Tempo de vida do datagrama IP
-    protocol = socket.IPPROTO_UDP  # Protocolo UDP
-    checksum = 0  # O cálculo do checksum pode ser ignorado
-    source_address = socket.inet_aton('0.0.0.0')  # Endereço de origem do cliente (qualquer valor)
-    dest_address = socket.inet_aton('15.228.191.109')  # Endereço de destino do servidor
-
-    # Empacotar os campos do cabeçalho IP
-    cabecalho_ip = struct.pack('!BBHHHBBH4s4s', version_ihl, dscp_ecn, total_length, identification, flags_fragment_offset, ttl, protocol, checksum, source_address, dest_address)
-
-    # Retornar o datagrama IP com o cabeçalho IP anexado
-    return cabecalho_ip + mensagem
-
-def enviar_requisicao(socket_cliente, tipo, identificador):
-    # Formato da mensagem de requisição: req/res (4 bits), tipo (4 bits), identificador (16 bits)
-    mensagem = bytes([tipo, identificador >> 8, identificador & 0xFF])
-
-    # Anexar cabeçalhos UDP e IP à mensagem
-    mensagem_com_cabecalhos = anexar_cabecalho_udp(mensagem)
-    mensagem_com_cabecalhos = anexar_cabecalho_ip(mensagem_com_cabecalhos)
-
-    # Enviar a mensagem ao servidor
-    socket_cliente.sendto(mensagem_com_cabecalhos, ('15.228.191.109', 0))  # 0 indica que o SO deve escolher uma porta de origem automaticamente
-
+    # Montar o payload da mensagem
+    payload = struct.pack('!BBBBH', 0, tipo, identificador >> 8, identificador & 0xFF, 0)
+    
+    # Montar o cabeçalho UDP
+    cabecalho_udp = montar_cabecalho_udp(12345, SERVER_PORT, len(payload))
+    
+    # Montar o cabeçalho IP
+    cabecalho_ip = montar_cabecalho_ip('192.168.0.1', SERVER_IP, socket.IPPROTO_UDP, len(cabecalho_udp) + len(payload))
+    
+    # Enviar pacote UDP/IP
+    socket_raw.sendto(cabecalho_ip + cabecalho_udp + payload, (SERVER_IP, SERVER_PORT))
+    
     # Receber resposta do servidor
-    dados, _ = socket_cliente.recvfrom(1024)
+    dados, _ = socket_raw.recvfrom(1024)
     return dados
 
 def exibir_resposta(resposta):
-    # extrair os primeiros 4 bits do 1º byte da resposta, que representam o tipo da resposta (0, 1 ou 2)
-    tipo_resposta = resposta[0] & 0b00001111
+    # Interpretar a resposta
+    tipo_resposta = resposta[1] & 0b00001111
     tamanho_resposta = resposta[3]
-
-    # Verificar se o tamanho da resposta corresponde ao valor especificado no cabeçalho
-    if len(resposta) != tamanho_resposta + 4:
-        print("Erro: Tamanho da resposta incorreto")
-        return
     
-    # Exibir a resposta de acordo com o tipo
     if tipo_resposta == 0:
-        print("Data e hora atual:", str(resposta[4:4+tamanho_resposta], 'latin-1'))
+        print("Data e hora atual:", resposta[4:].decode('utf-8', errors='ignore'))
     elif tipo_resposta == 1:
-        print("Mensagem motivacional:", str(resposta[4:4+tamanho_resposta], 'latin-1'))
+        print("Mensagem motivacional:", resposta[4:].decode('utf-8', errors='ignore'))
     elif tipo_resposta == 2:
-        print("Quantidade de respostas emitidas pelo servidor:", int.from_bytes(resposta[4:4+tamanho_resposta], byteorder='big'))
+        print("Quantidade de respostas emitidas pelo servidor:", struct.unpack('!I', resposta[4:8])[0])
+    else:
+        print("Tipo de resposta inválido")
 
-# Criar socket RAW UDP
-cliente_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
+# Criar socket RAW
+cliente_socket_raw = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
 
 # Loop principal do cliente
 while True:
@@ -85,10 +72,10 @@ while True:
     if escolha in [1, 2, 3]:
         # Gerar identificador aleatório entre 1 e 65535
         identificador = random.randint(1, 65535)  
-        resposta = enviar_requisicao(cliente_socket, escolha - 1, identificador)
+        resposta = enviar_requisicao(cliente_socket_raw, escolha - 1, identificador)
         exibir_resposta(resposta)
     else:
         print("Opção inválida. Tente novamente.")
 
 # Fechar o socket
-cliente_socket.close()
+cliente_socket_raw.close()
