@@ -1,81 +1,78 @@
 import socket
-import random
 import struct
+import random
 
-def montar_cabecalho_udp(porta_origem, porta_destino, tamanho_total):
-    # Montar o cabeçalho UDP
-    # Cabeçalho UDP: porta origem (16 bits), porta destino (16 bits), tamanho (16 bits), checksum (16 bits)
-    cabecalho = struct.pack('!HHHH', porta_origem, porta_destino, tamanho_total, 0)
-    return cabecalho
+# Função para adicionar cabeçalho IP
+def add_ip_header(message):
+    ip_header = struct.pack('!BBHHHBBH4s4s', 69, 0, 20 + len(message), 0, 0, 64, 17, 0, socket.inet_aton('0.0.0.0'), socket.inet_aton('15.228.191.109'))
+    return ip_header + message
 
-def montar_cabecalho_ip(ip_origem, ip_destino, protocolo, tamanho_total):
-    # Convertendo endereços IP para representação de bytes
-    ip_origem_bytes = socket.inet_aton(ip_origem)
-    ip_destino_bytes = socket.inet_aton(ip_destino)
-    
-    # Montar o cabeçalho IP
-    # Cabeçalho IP: versão, IHL, tipo de serviço, tamanho total, identificador, flags, offset, TTL, protocolo, checksum,
-    # IP origem (32 bits), IP destino (32 bits)
-    cabecalho = struct.pack('!BBHHHBBH4s4s', 69, 0, 0, tamanho_total, 0, 64, protocolo, 0, ip_origem_bytes, ip_destino_bytes)
-    return cabecalho
+# Função para adicionar cabeçalho UDP
+def add_udp_header(message):
+    udp_header = struct.pack('!HHHH', 1234, 50000, len(message) + 8, 0)
+    return udp_header + message
 
-def enviar_requisicao(socket_raw, tipo, identificador):
-    # Endereço IP e porta do servidor
-    SERVER_IP = '15.228.191.109'
-    SERVER_PORT = 50000
-    
-    # Montar o payload da mensagem
-    payload = struct.pack('!BBBBH', 0, tipo, identificador >> 8, identificador & 0xFF, 0)
-    
-    # Montar o cabeçalho UDP
-    cabecalho_udp = montar_cabecalho_udp(12345, SERVER_PORT, len(payload))
-    
-    # Montar o cabeçalho IP
-    cabecalho_ip = montar_cabecalho_ip('192.168.0.1', SERVER_IP, socket.IPPROTO_UDP, len(cabecalho_udp) + len(payload))
-    
-    # Enviar pacote UDP/IP
-    socket_raw.sendto(cabecalho_ip + cabecalho_udp + payload, (SERVER_IP, SERVER_PORT))
-    
-    # Receber resposta do servidor
-    dados, _ = socket_raw.recvfrom(1024)
-    return dados
+# Função para enviar requisição ao servidor
+def enviar_requisicao(request_type, identifier):
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
 
-def exibir_resposta(resposta):
-    # Interpretar a resposta
-    tipo_resposta = resposta[1] & 0b00001111
-    tamanho_resposta = resposta[3]
+    server_address = ('15.228.191.109', 50000)
+    request_message = struct.pack('!BBH', 0, request_type, identifier)
+    request_message = add_udp_header(request_message)
+    request_message = add_ip_header(request_message)
     
+    client_socket.sendto(request_message, server_address)
+    response, _ = client_socket.recvfrom(1024)
+    
+    return response
+
+# Função para formatar e exibir a resposta
+def display_response(response):
+    ip_header = response[:20]
+    udp_header = response[20:28]
+    response_data = response[28:]
+
+    tipo_resposta, identifier, response_length = struct.unpack('!BHH', response_data[:5])
+    resposta_correta = response_data[5:]
+
+    print("response_data = ", response_data)
+    print("resposta_correta = ", resposta_correta)
+    print("resposta_lenght = ", response_length)
+    print("response = ", response)
+
+    if len(resposta_correta) != response_length:
+        print("Erro: Tamanho da resposta incorreto")
+        return
+
     if tipo_resposta == 0:
-        print("Data e hora atual:", resposta[4:].decode('utf-8', errors='ignore'))
+        print("Data e hora atual:", resposta_correta.decode())
     elif tipo_resposta == 1:
-        print("Mensagem motivacional:", resposta[4:].decode('utf-8', errors='ignore'))
+        print("Mensagem motivacional:", resposta_correta.decode())
     elif tipo_resposta == 2:
-        print("Quantidade de respostas emitidas pelo servidor:", struct.unpack('!I', resposta[4:8])[0])
-    else:
-        print("Tipo de resposta inválido")
+        print("Quantidade de respostas emitidas pelo servidor:", int.from_bytes(resposta_correta, byteorder='big'))
 
-# Criar socket RAW
-cliente_socket_raw = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+# Função principal
+def main():
+    while True:
+        print("\nEscolha uma opção:")
+        print("1. Data e hora atual")
+        print("2. Mensagem motivacional para o fim do semestre")
+        print("3. Quantidade de respostas emitidas pelo servidor")
+        print("4. Sair")
+        
+        choice = int(input("Opção: "))
+        
+        if choice == 4:
+            print("Saindo...")
+            break
+        
+        identifier = random.randint(1, 65535)
+        
+        if choice in (1, 2, 3):
+            response = enviar_requisicao(choice - 1, identifier)
+            display_response(response)
+        else:
+            print("Opção inválida!")
 
-# Loop principal do cliente
-while True:
-    print("\nEscolha uma opção:")
-    print("1. Data e hora atual")
-    print("2. Mensagem motivacional para o fim do semestre")
-    print("3. Quantidade de respostas emitidas pelo servidor")
-    print("4. Sair")
-    escolha = int(input("Opção: "))
-    
-    if escolha == 4:
-        break
-    
-    if escolha in [1, 2, 3]:
-        # Gerar identificador aleatório entre 1 e 65535
-        identificador = random.randint(1, 65535)  
-        resposta = enviar_requisicao(cliente_socket_raw, escolha - 1, identificador)
-        exibir_resposta(resposta)
-    else:
-        print("Opção inválida. Tente novamente.")
-
-# Fechar o socket
-cliente_socket_raw.close()
+if __name__ == "__main__":
+    main()
