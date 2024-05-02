@@ -1,11 +1,10 @@
 """
-Nome: Henrique Andrade
-E-mail: henrique.andrade@academico.ufpb.br
-Data de Criação: 26/04/2024
-Última Atualização: 26/04/2024 - 16:10:55
-Linguagem: Python
-
+Grupo: HENRIQUE DE ANDRADE FRANCA       - 20210024961
+       ISAAC SEBASTIAN LIMA DE ARAUJO   - 20210025403
+       RODRIGO LANES MENESES            - 20210025243
+       
 Descrição: Implementação do cliente (socket UDP)
+Linguagem: Python
 
 """
 
