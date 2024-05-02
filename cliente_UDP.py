@@ -25,9 +25,8 @@ def enviar_requisicao(socket_cliente, tipo, identificador):
       para possíveis futuras extensões
     """
     socket_cliente.sendto(mensagem, (SERVER_IP, SERVER_PORT))
-    # dados, _ = socket_cliente.recvfrom(1024)  # Recebendo resposta do servidor
-    # print(dados)
-    # return dados
+    dados, _ = socket_cliente.recvfrom(1024)  # Recebendo resposta do servidor
+    return dados
 
 def exibir_resposta(resposta):
     # extrai os primeiros 4 bits do 1º byte da resposta, que representam o tipo da resposta (0, 1 ou 2)
@@ -80,7 +79,7 @@ while True:
         # Gerar identificador aleatório entre 1 e 65535
         identificador = random.randint(1, 65535)  
         resposta = enviar_requisicao(cliente_socket, escolha - 1, identificador)
-        #exibir_resposta(resposta)
+        exibir_resposta(resposta)
     else:
         print("Opção inválida. Tente novamente.")
 
