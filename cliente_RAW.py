@@ -1,3 +1,13 @@
+"""
+Grupo: HENRIQUE DE ANDRADE FRANCA       - 20210024961
+       ISAAC SEBASTIAN LIMA DE ARAUJO   - 20210025403
+       RODRIGO LANES MENESES            - 20210025243
+       
+Descrição: Implementação do cliente (socket RAW)
+Linguagem: Python
+
+"""
+
 '''
 UDP Field:
  0      7 8     15 16    23 24    31 
