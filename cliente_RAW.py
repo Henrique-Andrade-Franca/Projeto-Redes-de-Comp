@@ -1,26 +1,48 @@
 import socket
 import random
+import struct
 
-# Função para anexar cabeçalho UDP à mensagem
-def adicionar_cabecalho_udp(mensagem, identificador, tamanho_resposta):
-    cabecalho = bytearray(8)
-    # req/res (4 bits), tipo (4 bits)
-    cabecalho[0] = 0b00000000  # Requisição
-    cabecalho[1] = 0b00000000  # Tipo: a ser definido
-    # Identificador (16 bits)
-    cabecalho[2] = (identificador >> 8) & 0xFF
-    cabecalho[3] = identificador & 0xFF
-    # Tamanho da resposta (8 bits)
-    cabecalho[4] = tamanho_resposta
-    # Copiar o cabeçalho para a mensagem
-    mensagem_com_cabecalho = cabecalho + mensagem
-    return mensagem_com_cabecalho
+def enviar_requisicao(socket_raw, tipo, identificador):
+    # Cabeçalho UDP: Origem (16 bits), Destino (16 bits), Comprimento (16 bits), Checksum (16 bits)
+    udp_header = struct.pack('!HHHH', CLIENT_PORT, SERVER_PORT, 28, 0)  # Comprimento fixo de 8 bytes
+    # Formato da mensagem de requisição: req/res (4 bits), tipo (4 bits), identificador (16 bits)
+    mensagem = bytes([tipo, identificador >> 28, identificador & 0xFF])
+    # Enviar requisição com cabeçalho UDP
+    socket_raw.sendto(udp_header + mensagem, (SERVER_IP, SERVER_PORT))
+
+def receber_resposta(socket_raw):
+    # Receber resposta do servidor (considerando que o cabeçalho UDP também será recebido)
+    dados, _ = socket_raw.recvfrom(1024)
+    return dados[28:]  # Ignorar os primeiros 8 bytes do cabeçalho UDP e IP
+
+def exibir_resposta(resposta):
+    # Extrair os primeiros 4 bits do 1º byte da resposta, que representam o tipo da resposta (0, 1 ou 2)
+    tipo_resposta = resposta[28] & 0b00001111  # Considerando os 28 bytes do cabeçalho UDP e IP
+    tamanho_resposta = resposta[28 + 3]  # Considerando o tamanho do cabeçalho UDP e IP
+
+    # Verificar se o tamanho da resposta corresponde ao valor especificado no cabeçalho
+    if len(resposta) != tamanho_resposta + 28:  # Adicionando o tamanho do cabeçalho UDP
+        print("\nResposta do servidor: ", resposta)
+        print("Tipo da resposta: ", tipo_resposta)
+        print("Tamanho da resposta: ", tamanho_resposta)
+        print("\nErro: Tamanho da resposta incorreto")
+        return
+
+    # Exibir a resposta de acordo com o tipo
+    if tipo_resposta == 0:
+        print("Data e hora atual:", str(resposta[8 + 4:8 + 4 + tamanho_resposta], 'latin-1'))
+    elif tipo_resposta == 1:
+        print("Mensagem motivacional:", str(resposta[8 + 4:8 + 4 + tamanho_resposta], 'latin-1'))
+    elif tipo_resposta == 2:
+        print("Quantidade de respostas emitidas pelo servidor:", int.from_bytes(resposta[8 + 4:8 + 4 + tamanho_resposta], byteorder='big'))
 
 # Endereço IP e porta do servidor
 SERVER_IP = '15.228.191.109'
 SERVER_PORT = 50000
+# Porta do cliente para enviar requisições
+CLIENT_PORT = 50001  # Valor arbitrário
 
-# Criar socket RAW com protocolo IPPROTO_UDP
+# Criar socket RAW
 cliente_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
 
 # Loop principal do cliente
@@ -37,31 +59,10 @@ while True:
     
     if escolha in [1, 2, 3]:
         # Gerar identificador aleatório entre 1 e 65535
-        identificador = random.randint(1, 65535)
-        
-        # Definir o tipo da requisição de acordo com a escolha do usuário
-        tipo_requisicao = escolha - 1
-        
-        # Preparar a mensagem da requisição
-        mensagem_requisicao = bytes([tipo_requisicao])
-        
-        # Adicionar cabeçalho UDP à mensagem
-        mensagem_com_cabecalho = adicionar_cabecalho_udp(mensagem_requisicao, identificador, 0)
-        
-        # Enviar a requisição para o servidor
-        cliente_socket.sendto(mensagem_com_cabecalho, (SERVER_IP, SERVER_PORT))
-        
-        # Receber a resposta do servidor
-        resposta, endereco_servidor = cliente_socket.recvfrom(1024)
-        
-        # Exibir a resposta do servidor
-        tipo_resposta = resposta[0] & 0b00001111
-        tamanho_resposta = resposta[4]
-        print("Resposta do servidor:")
-        print("Tipo:", tipo_resposta)
-        print("Identificador:", (resposta[2] << 8) + resposta[3])
-        print("Tamanho da resposta:", tamanho_resposta)
-        print("Resposta propriamente dita:", resposta[8:].decode('utf-8', errors='ignore'))
+        identificador = random.randint(1, 65535)  
+        enviar_requisicao(cliente_socket, escolha - 1, identificador)
+        resposta = receber_resposta(cliente_socket)
+        exibir_resposta(resposta)
     else:
         print("Opção inválida. Tente novamente.")
 
