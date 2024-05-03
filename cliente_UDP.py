@@ -39,8 +39,8 @@ def exibir_resposta(resposta):
     
     """
       [4:4+tamanho_resposta]: retorna parte dos bytes da resposta, começa do quinto byte (índice 4)
-      até o índice correspondente
-      ao quarto byte mais o tamanho da propria resposta, p/ n incluir o cabeçalho da mensagem
+      até o índice correspondente ao quarto byte mais o tamanho da propria resposta, p/ n incluir o
+      cabeçalho da mensagem
     """
     # Exibir a resposta de acordo com o tipo
     if tipo_resposta == 0:
