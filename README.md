@@ -1,66 +1,50 @@
-# Cliente UDP de Requisições
+# Aplicação Cliente/Servidor UDP e RAW
 
-Este é um cliente implementado em Python utilizando sockets UDP para se comunicar com um servidor. Ele permite que os usuários façam solicitações a um servidor remoto para obter informações como data e hora atual, mensagens motivacionais para o fim do semestre e a quantidade de respostas emitidas pelo servidor até o momento.
+Este repositório contém a implementação de dois clientes (um utilizando socket UDP e outro utilizando socket RAW) para uma aplicação do tipo cliente/servidor que encaminha requisições para o servidor executando no endereço IP 15.228.191.109 e porta 50000. 
 
-## Pré-requisitos
+## Requisitos
 
-Certifique-se de ter Python 3 instalado em seu sistema.
+Para executar os clientes, é necessário ter o Python instalado na máquina.
 
-## Como Usar
+## Funcionalidades
 
-1. Clone este repositório em sua máquina local:
+Os clientes oferecem as seguintes funcionalidades:
 
-    ```
-    git clone https://github.com/Henrique-Andrade-Franca/Projeto-Redes-de-Comp.git
-    ```
+1. **Data e Hora Atual**: Solicita ao servidor a data e hora atual.
+2. **Mensagem Motivacional para o Fim do Semestre**: Solicita ao servidor uma mensagem motivacional para o fim do semestre.
+3. **Quantidade de Respostas Emitidas pelo Servidor**: Solicita ao servidor a quantidade de respostas emitidas até o momento.
+4. **Sair**: Encerra a execução do cliente.
 
-2. Navegue até o diretório clonado:
+## Formato das Mensagens
 
-    ```
-    cd Projeto-Redes-de-Comp
-    ```
+As mensagens de requisição/resposta seguem o seguinte formato:
 
-3. Execute o programa cliente:
+- **req/res**: Indicação para mensagem do tipo requisição (bits 0000) ou resposta (bits 0001).
+- **tipo**: Indicação do tipo de requisição ou resposta. Bits 0000 para solicitação de data, bits 0001 para solicitação de frase motivacional para o fim do semestre e bits 0010 para quantidade de respostas emitidas pelo servidor. O servidor ainda pode emitir uma resposta com o tipo 0011 para indicar que recebeu uma requisição inválida.
+- **identificador**: Número não negativo de 2 bytes determinado pelo cliente. O identificador 0 é reservado para o servidor informar o recebimento de uma requisição inválida.
+- **tamanho da resposta**: Campo utilizado apenas em respostas geradas pelo servidor. Indica o tamanho da resposta propriamente ditas, em número de bytes (1 a 255). O tamanho 0 é reservado para quando o servidor envia uma resposta indicando o recebimento de uma requisição inválida.
+- **bytes da resposta propriamente dita**: Uma sequência de bytes contendo a resposta solicitada pelo usuário. Caso o servidor esteja informando o recebimento de uma requisição inválida, nenhum byte é encaminhado neste campo.
 
-    ```
-    python cliente_UDP.py
-    ```
+## Implementação
 
-4. O cliente solicitará ao usuário a escolha de uma das opções de requisição disponíveis:
+O repositório contém duas implementações de clientes:
 
-    1. Data e hora atual.
-    2. Uma mensagem motivacional para o fim do semestre.
-    3. A quantidade de respostas emitidas pelo servidor até o momento.
-    4. Sair.
+1. **cliente_UDP.py**: Implementação do cliente utilizando socket UDP.
+2. **cliente_RAW.py**: Implementação do cliente utilizando socket RAW.
 
-5. Após selecionar uma opção, o cliente enviará a requisição ao servidor e exibirá a resposta recebida de forma legível para o usuário.
+## Execução
 
-6. O programa continuará aguardando novas requisições até que o usuário selecione a opção "Sair".
+Para executar qualquer um dos clientes, basta rodar o arquivo correspondente no terminal. Certifique-se de estar na mesma rede do servidor e de que o servidor esteja em execução.
 
-## Formato de Mensagem
-
-As requisições enviadas pelo cliente e as respostas recebidas pelo servidor seguem o seguinte formato de mensagem:
-
-```
-REQ/RES: <req_res>
-TIPO: <tipo>
-IDENTIFICADOR: <identificador>
-TAMANHO DA RESPOSTA: <tamanho>
-RESPOSTA: <resposta_bytes>
-
+```bash
+python cliente_UDP.py
 ```
 
-Onde:
+ou
 
-1. `<req_res>` é um campo de 4 bits indicando se é uma requisição (REQ) ou resposta (RES).
-2. `<tipo>` é um campo de 4 bits indicando o tipo de requisição ou resposta.
-3. `<identificador>` é um campo de 16 bits usado para identificar a requisição ou resposta.
-4. `<tamanho>` é um campo de 8 bits indicando o tamanho da resposta em bytes.
-5. `<resposta_bytes>` são os bytes da resposta, onde cada byte é representado por 8 bits.
-
-## Servidor Remoto
-
-O cliente está configurado para se comunicar com um servidor remoto hospedado no endereço IP `15.228.191.109` na porta `50000`.
+```bash
+python cliente_RAW.py
+```
 
 ## Contribuição
 
